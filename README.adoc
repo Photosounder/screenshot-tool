@@ -1,6 +1,6 @@
 # Michel Rouzic's screenshot tool
 
-This is my screenshot tool that I use to take screenshots (Windows only, OpenCL required). As with all my projects it depends on https://github.com/Photosounder/rouziclib[rouziclib] for all the heavy lifting.
+This is my screenshot tool that I use to take screenshots (Windows only, OpenCL required) by pressing *Ctrl*-*F1*. As with all my projects it depends on https://github.com/Photosounder/rouziclib[rouziclib] for all the heavy lifting.
 
 I recommend you download the latest binary (Windows only) https://github.com/Photosounder/rouziclib-picture-viewer/releases[here]. Don't forget to keep SDL2.dll together with screenshot.exe.
 
