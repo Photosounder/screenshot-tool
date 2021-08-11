@@ -11,7 +11,7 @@ image::screenshot1.png[screenshot1.png,float="right",align="center"]
 
 ### Launch
 
-When you first start the program it briefly flashes then you see nothing. It hides itself immediately while it waits for the hotkey, Ctrl-F1 (hardcoded for now). I put a shortcut to screenshot.exe in my Windows startup folder `%appdata%\..\Roaming\Microsoft\Windows\Start Menu\Programs\Startup` so it unobtrusively stays hidden in the background waiting (in a blocked way so it doesn't consume any CPU time at all) for you to press Ctrl and F1 together.
+When you first start the program it briefly flashes then you see nothing. It hides itself immediately while it waits for the hotkey, Ctrl-F1 (hardcoded for now). I put a shortcut to screenshot.exe in my Windows startup folder `shell:startup` (you can enter that in the Windows Explorer address bar) so it unobtrusively stays hidden in the background waiting (in a blocked way so it doesn't consume any CPU time at all) for you to press Ctrl and F1 together.
 
 ### Cropping
 
