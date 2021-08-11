@@ -2,7 +2,7 @@
 
 This is my screenshot tool that I use to take screenshots (Windows only, OpenCL required) by pressing *Ctrl*-*F1*. As with all my projects it depends on https://github.com/Photosounder/rouziclib[rouziclib] for all the heavy lifting.
 
-I recommend you download the latest binary (Windows only) https://github.com/Photosounder/rouziclib-picture-viewer/releases[here]. Don't forget to keep SDL2.dll together with screenshot.exe.
+I recommend you download the latest binary (Windows only) https://github.com/Photosounder/screenshot-tool/releases[here]. Don't forget to keep SDL2.dll together with screenshot.exe.
 
 :imagesdir: img
 image::screenshot1.png[screenshot1.png,float="right",align="center"]
