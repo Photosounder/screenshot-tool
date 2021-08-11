@@ -75,7 +75,7 @@ void screenshot_editor(int *shot_flag, int *hide_flag, int *exit_flag)
 		get_knob_data_fromlayout(&layout, 71)->max = r.dim.x;
 		get_knob_data_fromlayout(&layout, 72)->max = r.dim.x;
 
-		resize_state.init = 0;
+		resize_box = im_rect;
 		crop_rect = rect(XY0, xyi_to_xy(r.dim));
 		crop_recalc = 1;
 
@@ -129,8 +129,6 @@ void screenshot_editor(int *shot_flag, int *hide_flag, int *exit_flag)
 	drawq_bracket_close(DQB_ADD);
 
 	// Selection control
-	if (resize_state.init==0)
-		resize_box = im_rect;
 	gui_col_def = make_grey(0.4);
 	if (preview==0)
 		if (ctrl_resizing_rect(&resize_state, &resize_box))
