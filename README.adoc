@@ -1,0 +1,3 @@
+# Michel Rouzic's screenshot tool
+
+This is my screenshot tool that I use to take screenshots (Windows only, OpenCL required).
