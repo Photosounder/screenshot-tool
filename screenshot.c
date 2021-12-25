@@ -188,8 +188,8 @@ void screenshot_editor(int *shot_flag, int *hide_flag, int *exit_flag)
 	{
 		// Copy cropped image
 		raster_t rs={0};
-		rs = make_raster(NULL, sub_xyi(crop_recti.p1, crop_recti.p0), XYI0, IMAGE_USE_SRGB);
-		for (i=crop_recti.p0.y; i < crop_recti.p1.y; i++)
+		rs = make_raster(NULL, sub_xyi(add_xyi(XYI1, crop_recti.p1), crop_recti.p0), XYI0, IMAGE_USE_SRGB);
+		for (i=crop_recti.p0.y; i <= crop_recti.p1.y; i++)
 			memcpy(&rs.srgb[(i-crop_recti.p0.y)*rs.dim.x], &r.srgb[i*r.dim.x + crop_recti.p0.x], rs.dim.x * sizeof(srgb_t));
 
 		// Save it to file
