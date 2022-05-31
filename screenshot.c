@@ -218,7 +218,7 @@ int main(int argc, char *argv[])
 	SDL_Event event;
 
 	// Hotkey registration
-	if (RegisterHotKey(NULL, 1, MOD_CONTROL | MOD_NOREPEAT, VK_F1)==0)
+	if (RegisterHotKey(NULL, 1, MOD_CONTROL | MOD_NOREPEAT, 0x70 /*VK_F1*/)==0)
 		fprintf_rl(stderr, "Hotkey already registered, error #%d\n", GetLastError());
 
 	if (init)
@@ -254,7 +254,7 @@ hotkey_start:
 		MSG msg = {0};
 		while (GetMessage(&msg, NULL, 0, 0))
 		{
-			if (msg.message == WM_HOTKEY)
+			if (msg.message == 0x0312 /*WM_HOTKEY*/)
 			{
 				shot_flag = 1;
 				raise_flag = 1;
