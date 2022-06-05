@@ -212,13 +212,15 @@ void screenshot_editor(int *shot_flag, int *hide_flag, int *exit_flag)
 	}
 }
 
+#include <WinUser.h>
+
 int main(int argc, char *argv[])
 {
 	int hide_flag=0, exit_flag=0, init=1, shot_flag=0, raise_flag=0, first_loop=1;
 	SDL_Event event;
 
 	// Hotkey registration
-	if (RegisterHotKey(NULL, 1, MOD_CONTROL | MOD_NOREPEAT, 0x70 /*VK_F1*/)==0)
+	if (RegisterHotKey(NULL, 1, 2 /*MOD_CONTROL*/ | 0x4000 /*MOD_NOREPEAT*/, 0x70 /*VK_F1*/)==0)
 		fprintf_rl(stderr, "Hotkey already registered, error #%d\n", GetLastError());
 
 	if (init)
