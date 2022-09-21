@@ -35,7 +35,7 @@ void screenshot_editor(int *shot_flag, int *hide_flag, int *exit_flag)
 	static rect_t resize_box={0}, crop_rect={0}, im_rect={0};
 	static recti_t crop_recti={0};
 
-	// GUI layout (so far just one knob under the image)
+	// GUI layout
 	static gui_layout_t layout={0};
 	const char *layout_src[] = {
 		"elem 0", "type none", "label Options", "pos	0	0", "dim	3	8", "off	0	1", "",
@@ -70,13 +70,13 @@ void screenshot_editor(int *shot_flag, int *hide_flag, int *exit_flag)
 		print_to_layout_textedit(&layout, 60, 0, "%s.png", datestamp);			// generate filename
 
 		// Set knob limits
-		get_knob_data_fromlayout(&layout, 70)->max = r.dim.y;
-		get_knob_data_fromlayout(&layout, 73)->max = r.dim.y;
-		get_knob_data_fromlayout(&layout, 71)->max = r.dim.x;
-		get_knob_data_fromlayout(&layout, 72)->max = r.dim.x;
+		get_knob_data_fromlayout(&layout, 70)->max = r.dim.y-1;
+		get_knob_data_fromlayout(&layout, 73)->max = r.dim.y-1;
+		get_knob_data_fromlayout(&layout, 71)->max = r.dim.x-1;
+		get_knob_data_fromlayout(&layout, 72)->max = r.dim.x-1;
 
 		resize_box = im_rect;
-		crop_rect = rect(XY0, xyi_to_xy(r.dim));
+		crop_rect = rect(XY0, xyi_to_xy(sub_xyi(r.dim, set_xyi(1))));
 		crop_recalc = 1;
 
 		// Make copy
@@ -232,19 +232,19 @@ int main(int argc, char *argv[])
 		vector_font_load_from_header();
 
 		#ifdef RL_OPENCL
-		fb.use_drawq = 1;
+		fb->use_drawq = 1;
 		#else
 		fb.use_drawq = 0;
 		#endif
-		fb.r.use_frgb = fb.use_drawq;
+		fb->r.use_frgb = fb->use_drawq;
 		sdl_graphics_init_autosize("rouziclib screenshot", SDL_WINDOW_RESIZABLE, 0);
-		SDL_MaximizeWindow(fb.window);
+		SDL_MaximizeWindow(fb->window);
 		sdl_toggle_borderless_fullscreen();
 
 		zc = init_zoom(&mouse, drawing_thickness);
 		calc_screen_limits(&zc);
 		mouse = init_mouse();
-		SDL_HideWindow(fb.window);
+		SDL_HideWindow(fb->window);
 
 		gui_col_def = make_grey(0.25);
 	}
@@ -305,10 +305,10 @@ hotkey_start:
 
 		if (first_loop==0)
 		{
-			SDL_ShowWindow(fb.window);
+			SDL_ShowWindow(fb->window);
 			if (raise_flag)
 			{
-				SDL_RaiseWindow(fb.window);
+				SDL_RaiseWindow(fb->window);
 				raise_flag = 0;
 			}
 		}
@@ -319,7 +319,7 @@ hotkey_start:
 		}
 	}
 
-	SDL_HideWindow(fb.window);
+	SDL_HideWindow(fb->window);
 	if (exit_flag==0)
 		goto hotkey_start;
 
