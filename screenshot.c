@@ -220,8 +220,11 @@ int main(int argc, char *argv[])
 	SDL_Event event;
 
 	// Hotkey registration
-	if (RegisterHotKey(NULL, 1, 2 /*MOD_CONTROL*/ | 0x4000 /*MOD_NOREPEAT*/, 0x70 /*VK_F1*/)==0)
-		fprintf_rl(stderr, "Hotkey already registered, error #%d\n", GetLastError());
+	if (RegisterHotKey(NULL, 1, 2 /*MOD_CONTROL*/ | 0x4000 /*MOD_NOREPEAT*/, 0x70 /*VK_F1*/) == 0)
+	{
+		sdl_box_printf("rouziclib screenshot", "Hotkey already registered, error #%d\n", GetLastError());
+		exit(0);
+	}
 
 	if (init)
 	{
