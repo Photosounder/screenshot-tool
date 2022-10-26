@@ -32,26 +32,27 @@ void screenshot_editor(int *shot_flag, int *hide_flag, int *exit_flag)
 	static double save_fail_time=0.;
 	static char datestamp[32];
 	static ctrl_resize_rect_t resize_state={0};
-	static rect_t resize_box={0}, crop_rect={0}, im_rect={0};
+	static rect_t resize_box={0}, crop_rect={0}, im_rect={0}, prev_rect={0};
 	static recti_t crop_recti={0};
 
 	// GUI layout
 	static gui_layout_t layout={0};
 	const char *layout_src[] = {
-		"elem 0", "type none", "label Options", "pos	0	0", "dim	3	8", "off	0	1", "",
+		"elem 0", "type none", "label Options", "pos	0	0", "dim	3	8;5", "off	0	1", "",
 		"elem 10", "type button", "label Reset sel", "pos	1;5	-2;7;6", "dim	1	0;4;6", "off	1", "",
+		"elem 11", "type button", "label Reuse prev sel", "link_pos_id 73.cb", "pos	0	-0;8", "dim	1;5;6	0;3", "off	0;6	1", "",
 		"elem 20", "type button", "label Save screenshot", "link_pos_id 60", "pos	0	-0;8", "dim	2	0;7", "off	0;6	1", "",
 		"elem 30", "type button", "label Hide window", "link_pos_id 20", "pos	0	-0;10", "dim	2	0;7", "off	0;6	1", "",
 		"elem 40", "type button", "label Exit", "link_pos_id 30", "pos	0	-0;10", "dim	2	0;7", "off	0;6	1", "",
-		"elem 50", "type textedit", "link_pos_id 73", "pos	0	-1;8", "dim	2	0;5", "off	0;6	1", "",
+		"elem 50", "type textedit", "link_pos_id 11.cb", "pos	0	-0;6", "dim	2	0;5", "off	0;6	1", "",
 		"elem 51", "type label", "label Folder", "link_pos_id 50", "pos	-0;11;6	0;0;6", "dim	1	0;3;6", "off	0", "",
 		"elem 52", "type button", "label Open \360\237\223\201", "link_pos_id 50", "pos	1	-0;6", "dim	0;9	0;3;6", "off	1", "",
 		"elem 60", "type textedit", "link_pos_id 50", "pos	0	-1;1", "dim	2	0;5", "off	0;6	1", "",
 		"elem 61", "type label", "label Filename", "link_pos_id 60", "pos	-0;11;6	0;0;6", "dim	1;5;6	0;3;6", "off	0", "",
-		"elem 70", "type knob", "label Top", "knob 0 0 1 linear %.0f", "pos	1;6	-1", "dim	0;8", "off	0;6	1", "",
-		"elem 71", "type knob", "label Left", "knob 0 0 1 linear %.0f", "pos	0;8	-1;5", "dim	0;8", "off	0;6	1", "",
-		"elem 72", "type knob", "label Right", "knob 0 0 1 linear %.0f", "pos	2;4	-1;5", "dim	0;8", "off	0;6	1", "",
-		"elem 73", "type knob", "label Bottom", "knob 0 0 1 linear %.0f", "pos	1;6	-1;10", "dim	0;8", "off	0;6	1", "",
+		"elem 70", "type knob", "label Top", "knob 0 0 1079 linear %.0f", "pos	1;6	-1", "dim	0;8", "off	0;6	1", "",
+		"elem 71", "type knob", "label Left", "knob 0 0 1919 linear %.0f", "pos	0;8	-1;5", "dim	0;8", "off	0;6	1", "",
+		"elem 72", "type knob", "label Right", "knob 0 0 1919 linear %.0f", "pos	2;4	-1;5", "dim	0;8", "off	0;6	1", "",
+		"elem 73", "type knob", "label Bottom", "knob 0 0 1079 linear %.0f", "pos	1;6	-1;10", "dim	0;8", "off	0;6	1", "",
 		"elem 75", "type label", "label Selection", "link_pos_id 70", "pos	0	0;3;6", "dim	2	0;2;6", "off	0;6	1", "",
 		"elem 80", "type checkbox", "label Preview", "link_pos_id 10", "pos	0;8	-0;0;6", "dim	1	0;3;6", "off	0;6	1", "",
 	};
@@ -139,7 +140,7 @@ void screenshot_editor(int *shot_flag, int *hide_flag, int *exit_flag)
 	static flwindow_t window={0};
 	flwindow_init_defaults(&window);
 	flwindow_init_pinned(&window);
-	window.bg_opacity = 0.9;
+	window.bg_opacity = 0.94;
 	window.shadow_strength = 0.5*window.bg_opacity;
 	draw_dialog_window_fromlayout(&window, NULL, NULL, &layout, 0);	// this handles and displays the window that contains the control
 
@@ -152,6 +153,12 @@ void screenshot_editor(int *shot_flag, int *hide_flag, int *exit_flag)
 	if (ctrl_button_fromlayout(&layout, 10))		// Reset selection
 	{
 		resize_box = im_rect;
+		crop_recalc = 1;
+	}
+
+	if (ctrl_button_fromlayout(&layout, 11))		// Reuse previous selection
+	{
+		resize_box = prev_rect;
 		crop_recalc = 1;
 	}
 
@@ -209,6 +216,12 @@ void screenshot_editor(int *shot_flag, int *hide_flag, int *exit_flag)
 		// Reset view
 		zoom_reset(&zc, &mouse.zoom_flag);
 		gui_layout_edit_toolbar(mouse.key_state[RL_SCANCODE_F6]==2);
+
+		// Save rect for potential later reuse
+		prev_rect = resize_box;
+
+		// Reset the preview checkbox to off
+		preview = 0;
 	}
 }
 

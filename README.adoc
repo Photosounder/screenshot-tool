@@ -15,7 +15,7 @@ When you first start the program it briefly flashes then you see nothing. It hid
 
 ### Cropping
 
-I shouldn't need to explain what the resizing control does, you just need to drag the squares around to reshape the selection. The Reset button resets the selection, and the Preview checkbox allows you to see the cropped image at full brightness (the image is otherwise darkned to make the controls more visible) without controls. Currently only the main screen is captured, other screens are ignored.
+I shouldn't need to explain what the resizing control does, you just need to drag the squares around to reshape the selection. The Reset button resets the selection, the Reuse prev sel restores the previous selection that was saved the last time that the interface was hidden so that selections can quickly be reused, and the Preview checkbox allows you to see the cropped image at full brightness (the image is otherwise darkned to make the controls more visible) without controls. Currently only the main screen is captured, other screens are ignored.
 
 ### Zooming to crop better
 
