@@ -310,7 +310,7 @@ void screenshot_editor_dialog(edit_data_t *d)
 	draw_label_fromlayout(&layout, 61, ALIG_LEFT);
 
 	// Save screenshot
-	if (ctrl_button_fromlayout(&layout, 20) || ret == 1 || (mouse.key_state[RL_SCANCODE_RETURN] == 2 && cur_textedit == NULL))
+	if (ctrl_button_fromlayout(&layout, 20) || ret == 1 || (mouse.key_state[RL_SCANCODE_RETURN] == 2 && get_kb_alt() < 0 && cur_textedit == NULL))
 	{
 		// Copy cropped image
 		raster_t rs={0};
