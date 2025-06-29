@@ -1,4 +1,4 @@
-# Michel Rouzic's screenshot tool
+= Michel Rouzic's screenshot tool
 
 This is my screenshot tool that I use to take screenshots (Windows only, OpenCL required) by pressing *Ctrl*-*F1* (combo can be changed). As with all my projects it depends on https://github.com/Photosounder/rouziclib[rouziclib] for all the heavy lifting.
 
@@ -7,21 +7,21 @@ I recommend you download the latest binary (Windows only) https://github.com/Pho
 :imagesdir: img
 image::screenshot1.png[screenshot1.png,float="right",align="center"]
 
-## Usage
+== Usage
 
-### Launch
+=== Launch
 
 When you first start the program it briefly flashes then you see nothing. It hides itself immediately while it waits for the hotkey, which is set to Ctrl-F1 by default but can be changed using the "Set hotkey" dialog. I put a shortcut to screenshot.exe in my Windows startup folder `shell:startup` (you can enter that in the Windows Explorer address bar) so it unobtrusively stays hidden in the background waiting (in a blocked way so it doesn't consume any CPU time at all) for you to press Ctrl and F1 together.
 
-### Cropping
+=== Cropping
 
 I shouldn't need to explain what the resizing control does, you just need to drag the squares around to reshape the selection. The Reset button resets the selection, the Reuse prev sel restores the previous selection that was saved the last time that the interface was hidden so that selections can quickly be reused, and the Preview checkbox allows you to see the cropped image at full brightness (the image is otherwise darkned to make the controls more visible) without controls. Currently only the main screen is captured, other screens are ignored.
 
-### Zooming to crop better
+=== Zooming to crop better
 
 The interface is zoomable as explained https://github.com/Photosounder/rouziclib-picture-viewer#zooming[here]. Basically by clicking the middle mouse button you enter the zoom-scroll mode so you can zoom (using the scroll wheel) and adjust the selection with more precision. You exit that mode by clicking the middle mouse button again or better yet reset the view by holding the middle mouse button for at least half a second.
 
-### Output
+=== Output
 
 By default the output folder is "My Pictures", you can change it by typing or better yet pasting a different path (such as `C:\screenshots` for instance), and you can use the "Open 📁" button to open the folder in Windows.
 
@@ -29,10 +29,10 @@ Both the "Save screenshot" and the Return key of your keyboard save the cropped 
 
 The output file is a PNG file by default, however you can also make it a JPG file by replacing the extension in the Filename field. JPG files have a quality preset of 92.
 
-### Full screen
+=== Full screen
 
 By default the interface is full screen so that it seemlessly transitions from your desktop to the program. However you can press Alt-Return to switch between full screen or windowed mode.
 
-### Other
+=== Other
 
 Saving a screenshot successfully will hide the interface, but if you don't want to save anything you can also click the "Hide window" button. And if you want to end the program the Exit button will do that.

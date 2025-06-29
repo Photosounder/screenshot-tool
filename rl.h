@@ -8,6 +8,7 @@
 #define RL_GDI32
 #define RL_INCL_UNICODE_DATA_MINI
 #define RL_INCL_VECTOR_TYPE_FILEBALL
+#define RL_IMAGE_FILE
 
 #include <rouziclib/rouziclib.h>
 

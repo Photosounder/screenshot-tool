@@ -310,7 +310,7 @@ void screenshot_editor_dialog(edit_data_t *d)
 	draw_label_fromlayout(&layout, 61, ALIG_LEFT);
 
 	// Save screenshot
-	if (ctrl_button_fromlayout(&layout, 20) || ret==1)
+	if (ctrl_button_fromlayout(&layout, 20) || ret == 1 || (mouse.key_state[RL_SCANCODE_RETURN] == 2 && cur_textedit == NULL))
 	{
 		// Copy cropped image
 		raster_t rs={0};
@@ -414,6 +414,8 @@ int main(int argc, char *argv[])
 #else
 	fb.use_drawq = 0;
 #endif
+	SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+
 	fb->r.use_frgb = fb->use_drawq;
 	sdl_graphics_init_autosize("rouziclib screenshot", SDL_WINDOW_RESIZABLE, 0);
 	SDL_MaximizeWindow(fb->window);
@@ -421,7 +423,7 @@ int main(int argc, char *argv[])
 
 	zc = init_zoom(&mouse, drawing_thickness);
 	calc_screen_limits(&zc);
-	mouse = init_mouse();
+	init_mouse();
 	SDL_HideWindow(fb->window);
 
 	gui_col_def = make_grey(0.25);
@@ -474,7 +476,7 @@ hotkey_start:
 				d->hide_flag = 1;
 		}
 
-		if (mouse.key_state[RL_SCANCODE_RETURN] == 2 && get_kb_alt())
+		if (mouse.key_state[RL_SCANCODE_RETURN] == 2 && get_kb_alt() > 0)
 			sdl_toggle_borderless_fullscreen();
 
 		textedit_add(cur_textedit, NULL);	// processes the new keystrokes in the current text editor
