@@ -91,7 +91,7 @@ void hotkey_dialog(edit_data_t *d)
 
 	// GUI layout
 	static gui_layout_t layout={0};
-	const char *layout_src[] = {
+	static const char *layout_src[] = {
 		"elem 0", "type none", "label Set hotkey", "pos	0	0", "dim	3;8	4;5", "off	0	1", "",
 		"elem 10", "type checkbox", "label Ctrl", "pos	0;6	-1;2", "dim	1;4	0;5", "off	0	1", "",
 		"elem 11", "type checkbox", "label Win", "link_pos_id 10.lb", "pos	0	-0;1", "dim	1;4	0;5", "off	0	1", "",
@@ -194,7 +194,7 @@ void screenshot_editor_dialog(edit_data_t *d)
 
 	// GUI layout
 	static gui_layout_t layout={0};
-	const char *layout_src[] = {
+	static const char *layout_src[] = {
 		"elem 0", "type none", "label Options", "pos	0	0", "dim	3	8;5", "off	0	1", "",
 		"elem 10", "type button", "label Reset sel", "pos	1;5	-2;7;6", "dim	1	0;4;6", "off	1", "",
 		"elem 11", "type button", "label Reuse prev sel", "link_pos_id 73.cb", "pos	-0;6;6	-0;8", "dim	1;1	0;3", "off	0;6	1", "",
