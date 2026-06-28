@@ -419,7 +419,8 @@ void screenshot_editor_dialog(edit_data_t *d)
 		gui_layout_edit_toolbar(mouse.key_state[RL_SCANCODE_F6]==2);
 
 		// Save rect for potential later reuse
-		d->prev_rect = d->resize_box;
+		if (!equal_rect(d->resize_box, d->im_rect))
+			d->prev_rect = d->resize_box;
 
 		// Reset the d->preview checkbox to off
 		d->preview = 0;
