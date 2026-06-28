@@ -1,15 +1,30 @@
 #include "rl.h"
 #include <WinUser.h>
 
-void take_and_process_screenshot(raster_t *r, mipmap_t *mm)
+void free_screenshot_rasters(raster_t **r, int *r_count)
 {
-	free_raster(r);
+	int i;
+
+	// Free each captured screenshot before freeing the array
+	if (r && *r && r_count)
+		for (i=0; i < *r_count; i++)
+			free_raster(&(*r)[i]);
+
+	// Clear the screenshot array and count
+	if (r)
+		free_null(r);
+	if (r_count)
+		*r_count = 0;
+}
+
+void take_and_process_screenshot(raster_t **r, int *r_count, mipmap_t *mm)
+{
+	// Release the previous capture before taking a new one
+	free_screenshot_rasters(r, r_count);
 	free_mipmap(mm);
 
-	*r = take_desktop_screenshot();
-	convert_image_srgb8_fullarg(r, (uint8_t *) r->srgb, IMAGE_USE_SQRGB, 0);
-	*mm = raster_to_tiled_mipmaps_fast_defaults(*r, IMAGE_USE_SQRGB);
-	free_null(&r->sq);
+	// Store the newly captured desktop rasters and their count
+	*r = take_desktop_screenshot(r_count);
 }
 
 xy_t sel_coord_to_pix_coord(xy_t sel_coord, rect_t im_rect, xyi_t dim)
@@ -27,9 +42,10 @@ xy_t sel_coord_to_pix_coord(xy_t sel_coord, rect_t im_rect, xyi_t dim)
 typedef struct
 {
 	int hide_flag, exit_flag, shot_flag, raise_flag, hotkey_diag_on;
-	raster_t r, rc;
+	raster_t *r, rc;
 	mipmap_t mm;
-	int knob_ret, crop_recalc, preview;
+	int knob_ret, crop_recalc, preview, r_count, image_recalc, image_id_moving, image_reset_crop, filename_recalc;
+	double image_id;
 	double save_fail_time;
 	char datestamp[32];
 	ctrl_resize_rect_t resize_state;
@@ -39,6 +55,59 @@ typedef struct
 	int apply_status;
 	double apply_time;
 } edit_data_t;
+
+raster_t *get_selected_screenshot(edit_data_t *d)
+{
+	int id;
+
+	// Return no raster when no screenshot capture is loaded
+	if (d->r == NULL || d->r_count <= 0)
+		return NULL;
+
+	// Convert the one-based image ID knob to a zero-based raster index
+	id = rangelimit_i32((int) nearbyint(d->image_id) - 1, 0, d->r_count - 1);
+	d->image_id = id + 1;
+
+	return &d->r[id];
+}
+
+void prepare_selected_screenshot(edit_data_t *d, gui_layout_t *layout, int reset_crop)
+{
+	raster_t *r;
+
+	// Resolve the active screenshot raster from the selected image ID
+	r = get_selected_screenshot(d);
+	if (r == NULL)
+		return;
+
+	// Rebuild the display mipmap for the selected screenshot
+	free_mipmap(&d->mm);
+	convert_image_srgb8_fullarg(r, (uint8_t *) r->srgb, IMAGE_USE_SQRGB, 0);
+	d->mm = raster_to_tiled_mipmaps_fast_defaults(*r, IMAGE_USE_SQRGB);
+	free_null(&r->sq);
+
+	// Update crop knob limits to the selected screenshot dimensions
+	if (layout)
+	{
+		get_knob_data_fromlayout(layout, 70)->max = r->dim.y-1;
+		get_knob_data_fromlayout(layout, 73)->max = r->dim.y-1;
+		get_knob_data_fromlayout(layout, 71)->max = r->dim.x-1;
+		get_knob_data_fromlayout(layout, 72)->max = r->dim.x-1;
+	}
+
+	if (reset_crop)
+	{
+		// Reset the crop state to the full selected screenshot
+		d->resize_box = d->im_rect;
+		d->crop_rect = rect(XY0, xyi_to_xy(sub_xyi(r->dim, set_xyi(1))));
+		d->crop_recti = recti(XYI0, sub_xyi(r->dim, set_xyi(1)));
+	}
+	d->crop_recalc = 1;
+
+	// Keep a cropped-preview copy of the selected screenshot
+	free_raster(&d->rc);
+	d->rc = copy_raster(*r);
+}
 
 typedef struct
 {
@@ -195,7 +264,7 @@ void screenshot_editor_dialog(edit_data_t *d)
 	// GUI layout
 	static gui_layout_t layout={0};
 	static const char *layout_src[] = {
-		"elem 0", "type none", "label Options", "pos	0	0", "dim	3	8;5", "off	0	1", "",
+		"elem 0", "type none", "label Options", "pos	0	0;3", "dim	3	8;8", "off	0	1", "",
 		"elem 10", "type button", "label Reset sel", "pos	1;5	-2;7;6", "dim	1	0;4;6", "off	1", "",
 		"elem 11", "type button", "label Reuse prev sel", "link_pos_id 73.cb", "pos	-0;6;6	-0;8", "dim	1;1	0;3", "off	0;6	1", "",
 		"elem 20", "type button", "label Save screenshot", "link_pos_id 60", "pos	0	-0;8", "dim	2	0;7", "off	0;6	1", "",
@@ -206,6 +275,7 @@ void screenshot_editor_dialog(edit_data_t *d)
 		"elem 52", "type button", "label Open \360\237\223\201", "link_pos_id 50", "pos	1	-0;6", "dim	0;9	0;3;6", "off	1", "",
 		"elem 60", "type textedit", "link_pos_id 50", "pos	0	-1;1", "dim	2	0;5", "off	0;6	1", "",
 		"elem 61", "type label", "label Filename", "link_pos_id 60", "pos	-0;11;6	0;0;6", "dim	1;5;6	0;3;6", "off	0", "",
+		"elem 65", "type knob", "label Image ID", "knob 1 1 2 linear %.0f", "pos	2;4	-0;6", "dim	0;8", "off	0;6	1", "",
 		"elem 70", "type knob", "label Top", "knob 0 0 1079 linear %.0f", "pos	1;6	-1", "dim	0;8", "off	0;6	1", "",
 		"elem 71", "type knob", "label Left", "knob 0 0 1919 linear %.0f", "pos	0;8	-1;5", "dim	0;8", "off	0;6	1", "",
 		"elem 72", "type knob", "label Right", "knob 0 0 1919 linear %.0f", "pos	2;4	-1;5", "dim	0;8", "off	0;6	1", "",
@@ -218,29 +288,12 @@ void screenshot_editor_dialog(edit_data_t *d)
 	gui_layout_init_pos_scale(&layout, xy(zc.limit_u.x-1.5, 7.5), 1.4, xy(-3., 0.), 0);
 	make_gui_layout(&layout, layout_src, sizeof(layout_src)/sizeof(char *), "Screenshot editor");
 
-	if (d->shot_flag)
+	if (d->filename_recalc)
 	{
-		time_t now = time(NULL);
-		take_and_process_screenshot(&d->r, &d->mm);
-		d->shot_flag = 0;
+		d->filename_recalc = 0;
 
-		// Make d->datestamp
-		strftime(d->datestamp, sizeof(d->datestamp), "%Y-%m-%d %H.%M.%S", localtime(&now));
+		// Update the generated filename
 		print_to_layout_textedit(&layout, 60, 0, "%s.png", d->datestamp);			// generate filename
-
-		// Set knob limits
-		get_knob_data_fromlayout(&layout, 70)->max = d->r.dim.y-1;
-		get_knob_data_fromlayout(&layout, 73)->max = d->r.dim.y-1;
-		get_knob_data_fromlayout(&layout, 71)->max = d->r.dim.x-1;
-		get_knob_data_fromlayout(&layout, 72)->max = d->r.dim.x-1;
-
-		d->resize_box = d->im_rect;
-		d->crop_rect = rect(XY0, xyi_to_xy(sub_xyi(d->r.dim, set_xyi(1))));
-		d->crop_recalc = 1;
-
-		// Make copy
-		free_raster(&d->rc);
-		d->rc = copy_raster(d->r);
 	}
 
 	if (init)
@@ -265,6 +318,18 @@ void screenshot_editor_dialog(edit_data_t *d)
 	col_t save_fail_col = mix_colours(make_colour(1., 0., 0., 0.), gui_col_def, 1.-gaussian(get_time_hr()-d->save_fail_time));
 	gui_set_control_colour(save_fail_col, &layout, 60);	// path textedit
 	gui_set_control_colour(save_fail_col, &layout, 20);	// Save button
+
+	// Match the image selector range to the current capture count
+	get_knob_data_fromlayout(&layout, 65)->max = d->r_count > 0 ? d->r_count : 1;
+
+	if (d->rc.srgb)
+	{
+		// Match the crop selector ranges to the current image dimensions
+		get_knob_data_fromlayout(&layout, 70)->max = d->rc.dim.y-1;
+		get_knob_data_fromlayout(&layout, 73)->max = d->rc.dim.y-1;
+		get_knob_data_fromlayout(&layout, 71)->max = d->rc.dim.x-1;
+		get_knob_data_fromlayout(&layout, 72)->max = d->rc.dim.x-1;
+	}
 
 	// GUI controls
 	if (ctrl_button_fromlayout(&layout, 10))		// Reset selection
@@ -292,6 +357,16 @@ void screenshot_editor_dialog(edit_data_t *d)
 
 	ctrl_checkbox_fromlayout(&d->hotkey_diag_on, &layout, 90);		// Hotkey dialog toggle	
 
+	// Image ID knob
+	int image_id_ret = ctrl_knob_fromlayout(&d->image_id, &layout, 65);
+	if (image_id_ret == 1)
+	{
+		d->image_recalc = 1;
+		d->image_id_moving = 0;
+	}
+	else
+		d->image_id_moving = image_id_ret == 2;
+
 	// Selection knobs
 	draw_label_fromlayout(&layout, 75, ALIG_LEFT | MONODIGITS);
 	d->knob_ret |= ctrl_knob_fromlayout(&d->crop_rect.p0.y, &layout, 70);
@@ -312,11 +387,18 @@ void screenshot_editor_dialog(edit_data_t *d)
 	// Save screenshot
 	if (ctrl_button_fromlayout(&layout, 20) || ret == 1 || (mouse.key_state[RL_SCANCODE_RETURN] == 2 && get_kb_alt() < 0 && cur_textedit == NULL))
 	{
+		raster_t *r;
+
+		// Resolve the selected image to save from
+		r = get_selected_screenshot(d);
+		if (r == NULL)
+			return;
+
 		// Copy cropped image
 		raster_t rs={0};
 		rs = make_raster(NULL, sub_xyi(add_xyi(XYI1, d->crop_recti.p1), d->crop_recti.p0), XYI0, IMAGE_USE_SRGB);
 		for (i=d->crop_recti.p0.y; i <= d->crop_recti.p1.y; i++)
-			memcpy(&rs.srgb[(i-d->crop_recti.p0.y)*rs.dim.x], &d->r.srgb[i*d->r.dim.x + d->crop_recti.p0.x], rs.dim.x * sizeof(srgb_t));
+			memcpy(&rs.srgb[(i-d->crop_recti.p0.y)*rs.dim.x], &r->srgb[i*r->dim.x + d->crop_recti.p0.x], rs.dim.x * sizeof(srgb_t));
 
 		// Save it to file
 		char *save_path = append_name_to_path(NULL, get_textedit_string_fromlayout(&layout, 50), get_textedit_string_fromlayout(&layout, 60));
@@ -351,23 +433,54 @@ void screenshot_editor(edit_data_t *d)
 {
 	int i;
 
-	// Apply the cropping visually
-	if (d->crop_recalc || d->knob_ret)
+	if (d->shot_flag)
 	{
+		time_t now = time(NULL);
+
+		// Capture the screenshots before queuing any draw work
+		take_and_process_screenshot(&d->r, &d->r_count, &d->mm);
+
+		// Select the first captured image and queue the filename update
+		d->shot_flag = 0;
+		d->image_id = 1.;
+		d->image_recalc = 1;
+		d->image_reset_crop = 1;
+		d->filename_recalc = 1;
+		strftime(d->datestamp, sizeof(d->datestamp), "%Y-%m-%d %H.%M.%S", localtime(&now));
+	}
+
+	if (d->image_recalc && d->image_id_moving==0)
+	{
+		// Prepare the selected image before queuing any draw work
+		prepare_selected_screenshot(d, NULL, d->image_reset_crop);
+		d->image_recalc = 0;
+		d->image_reset_crop = 0;
+	}
+
+	// Apply the cropping visually
+	if (d->image_id_moving==0 && (d->crop_recalc || d->knob_ret))
+	{
+		raster_t *r;
+
+		// Resolve the selected screenshot for visual editing
+		r = get_selected_screenshot(d);
+		if (r == NULL)
+			return;
+
 		if (d->crop_recalc)
 		{
 			// Crop recalculation
-			d->crop_rect.p0 = sel_coord_to_pix_coord(d->resize_box.p0, d->im_rect, d->r.dim);
-			d->crop_rect.p1 = sel_coord_to_pix_coord(d->resize_box.p1, d->im_rect, d->r.dim);
+			d->crop_rect.p0 = sel_coord_to_pix_coord(d->resize_box.p0, d->im_rect, r->dim);
+			d->crop_rect.p1 = sel_coord_to_pix_coord(d->resize_box.p1, d->im_rect, r->dim);
 			d->crop_rect = sort_rect(d->crop_rect);
 		}
 
 		d->crop_recti = rect_to_recti_round(d->crop_rect);
-		d->crop_recti = recti_boolean_intersection(d->crop_recti, recti(XYI0, sub_xyi(d->r.dim, set_xyi(1))));
+		d->crop_recti = recti_boolean_intersection(d->crop_recti, recti(XYI0, sub_xyi(r->dim, set_xyi(1))));
 
-		memset(d->rc.srgb, 0, mul_x_by_y_xyi(d->r.dim) * sizeof(srgb_t));
+		memset(d->rc.srgb, 0, mul_x_by_y_xyi(r->dim) * sizeof(srgb_t));
 		for (i=d->crop_recti.p0.y; i <= d->crop_recti.p1.y; i++)
-			memcpy(&d->rc.srgb[i*d->rc.dim.x + d->crop_recti.p0.x], &d->r.srgb[i*d->r.dim.x + d->crop_recti.p0.x], (1+d->crop_recti.p1.x-d->crop_recti.p0.x) * sizeof(srgb_t));
+			memcpy(&d->rc.srgb[i*d->rc.dim.x + d->crop_recti.p0.x], &r->srgb[i*r->dim.x + d->crop_recti.p0.x], (1+d->crop_recti.p1.x-d->crop_recti.p0.x) * sizeof(srgb_t));
 
 		free_mipmap(&d->mm);
 		convert_image_srgb8_fullarg(&d->rc, (uint8_t *) d->rc.srgb, IMAGE_USE_SQRGB, 0);
@@ -380,7 +493,7 @@ void screenshot_editor(edit_data_t *d)
 	// Draw image
 	drawq_bracket_open();
 	d->im_rect = blit_mipmap_in_rect(d->mm, sc_rect(make_rect_off(XY0, mul_xy(zc.limit_u, set_xy(2.)), xy(0.5, 0.5))), 1, AA_NEAREST_INTERP);	// the mipmap image is fitted inside a rectangle that represents the default view
-	//rect_t d->im_rect = blit_in_rect(&d->r, sc_rect(make_rect_off(XY0, mul_xy(zc.limit_u, set_xy(2.)), xy(0.5, 0.5))), 1, AA_NEAREST_INTERP);	// the mipmap image is fitted inside a rectangle that represents the default view
+	//rect_t d->im_rect = blit_in_rect(r, sc_rect(make_rect_off(XY0, mul_xy(zc.limit_u, set_xy(2.)), xy(0.5, 0.5))), 1, AA_NEAREST_INTERP);	// the mipmap image is fitted inside a rectangle that represents the default view
 	if (d->preview==0)
 		draw_gain(0.6);
 	drawq_bracket_close(DQB_ADD);

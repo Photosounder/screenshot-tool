@@ -9,6 +9,7 @@
 #define RL_INCL_UNICODE_DATA_MINI
 #define RL_INCL_VECTOR_TYPE_FILEBALL
 #define RL_IMAGE_FILE
+#define RL_EXCL_STRICMP
 
 #include <rouziclib/rouziclib.h>
 
