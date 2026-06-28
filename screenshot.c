@@ -29,27 +29,22 @@ void take_and_process_screenshot(raster_t **r, int *r_count, mipmap_t *mm)
 
 xy_t sel_coord_to_pix_coord(xy_t sel_coord, rect_t im_rect, xyi_t dim)
 {
-	xy_t p, im_dim = xyi_to_xy(dim);
+	xy_t scale, offset;
 
-	im_rect = sort_rect(im_rect);
-	p = sub_xy(sel_coord, rect_p01(im_rect));
-	p = div_xy(p, neg_y(get_rect_dim(im_rect)));
-	p = mul_xy(p, sub_xy(xyi_to_xy(dim), set_xy(1.)));
+	// Map selection coordinates to pixel index space
+	rect_range_and_dim_to_scale_offset_inv(sort_rect(im_rect), dim, &scale, &offset, 1);
 
-	return p;
+	return mad_xy(sel_coord, scale, offset);
 }
 
 xy_t set_pix_coord_to_coord(xy_t pix_coord, rect_t im_rect, xyi_t dim)
 {
-	xy_t p, im_dim = xyi_to_xy(dim);
+	xy_t scale, offset;
 
-	// Convert a pixel coordinate back to the selection coordinate space
-	im_rect = sort_rect(im_rect);
-	p = div_xy(pix_coord, sub_xy(im_dim, set_xy(1.)));
-	p = mul_xy(p, neg_y(get_rect_dim(im_rect)));
-	p = add_xy(p, rect_p01(im_rect));
+	// Map pixel-centre coordinates back to selection coordinates
+	rect_range_and_dim_to_scale_offset(sort_rect(im_rect), dim, &scale, &offset, 1);
 
-	return p;
+	return mad_xy(pix_coord, scale, offset);
 }
 
 void set_crop_knob_limits(gui_layout_t *layout, xyi_t dim)
