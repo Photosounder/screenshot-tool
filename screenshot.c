@@ -39,13 +39,39 @@ xy_t sel_coord_to_pix_coord(xy_t sel_coord, rect_t im_rect, xyi_t dim)
 	return p;
 }
 
+xy_t set_pix_coord_to_coord(xy_t pix_coord, rect_t im_rect, xyi_t dim)
+{
+	xy_t p, im_dim = xyi_to_xy(dim);
+
+	// Convert a pixel coordinate back to the selection coordinate space
+	im_rect = sort_rect(im_rect);
+	p = div_xy(pix_coord, sub_xy(im_dim, set_xy(1.)));
+	p = mul_xy(p, neg_y(get_rect_dim(im_rect)));
+	p = add_xy(p, rect_p01(im_rect));
+
+	return p;
+}
+
+void set_crop_knob_limits(gui_layout_t *layout, xyi_t dim)
+{
+	// Match crop knobs to the edited image dimensions
+	get_knob_data_fromlayout(layout, 70)->max = dim.y-1;
+	get_knob_data_fromlayout(layout, 73)->max = dim.y-1;
+	get_knob_data_fromlayout(layout, 71)->max = dim.x-1;
+	get_knob_data_fromlayout(layout, 72)->max = dim.x-1;
+	get_knob_data_fromlayout(layout, 76)->default_value = dim.x;
+	get_knob_data_fromlayout(layout, 76)->max = dim.x;
+	get_knob_data_fromlayout(layout, 77)->default_value = dim.y;
+	get_knob_data_fromlayout(layout, 77)->max = dim.y;
+}
+
 typedef struct
 {
 	int hide_flag, exit_flag, shot_flag, raise_flag, hotkey_diag_on;
 	raster_t *r, rc;
 	mipmap_t mm;
 	int knob_ret, crop_recalc, preview, r_count, image_recalc, image_id_moving, image_reset_crop, filename_recalc;
-	double image_id;
+	double image_id, crop_width, crop_height;
 	double save_fail_time;
 	char datestamp[32];
 	ctrl_resize_rect_t resize_state;
@@ -55,6 +81,25 @@ typedef struct
 	int apply_status;
 	double apply_time;
 } edit_data_t;
+
+recti_t get_limited_crop_recti(edit_data_t *d, xyi_t dim)
+{
+	// Round and clamp the crop rectangle to the edited image bounds
+	return recti_boolean_intersection(rect_to_recti_round(d->crop_rect), recti(XYI0, sub_xyi(dim, set_xyi(1))));
+}
+
+void set_resize_box_from_crop_rect(edit_data_t *d, raster_t *r)
+{
+	xy_t p0, p1;
+
+	// Convert the crop rectangle corners back to selection coordinates
+	p0 = set_pix_coord_to_coord(d->crop_rect.p0, d->im_rect, r->dim);
+	p1 = set_pix_coord_to_coord(d->crop_rect.p1, d->im_rect, r->dim);
+	d->resize_box.p0.x = p0.x;
+	d->resize_box.p1.y = p0.y;
+	d->resize_box.p1.x = p1.x;
+	d->resize_box.p0.y = p1.y;
+}
 
 raster_t *get_selected_screenshot(edit_data_t *d)
 {
@@ -66,7 +111,6 @@ raster_t *get_selected_screenshot(edit_data_t *d)
 
 	// Convert the one-based image ID knob to a zero-based raster index
 	id = rangelimit_i32((int) nearbyint(d->image_id) - 1, 0, d->r_count - 1);
-	d->image_id = id + 1;
 
 	return &d->r[id];
 }
@@ -88,12 +132,7 @@ void prepare_selected_screenshot(edit_data_t *d, gui_layout_t *layout, int reset
 
 	// Update crop knob limits to the selected screenshot dimensions
 	if (layout)
-	{
-		get_knob_data_fromlayout(layout, 70)->max = r->dim.y-1;
-		get_knob_data_fromlayout(layout, 73)->max = r->dim.y-1;
-		get_knob_data_fromlayout(layout, 71)->max = r->dim.x-1;
-		get_knob_data_fromlayout(layout, 72)->max = r->dim.x-1;
-	}
+		set_crop_knob_limits(layout, r->dim);
 
 	if (reset_crop)
 	{
@@ -264,9 +303,9 @@ void screenshot_editor_dialog(edit_data_t *d)
 	// GUI layout
 	static gui_layout_t layout={0};
 	static const char *layout_src[] = {
-		"elem 0", "type none", "label Options", "pos	0	0;3", "dim	3	8;8", "off	0	1", "",
-		"elem 10", "type button", "label Reset sel", "pos	1;5	-2;7;6", "dim	1	0;4;6", "off	1", "",
-		"elem 11", "type button", "label Reuse prev sel", "link_pos_id 73.cb", "pos	-0;6;6	-0;8", "dim	1;1	0;3", "off	0;6	1", "",
+		"elem 0", "type none", "label Options", "pos	0	0;3", "dim	3	9;2", "off	0	1", "",
+		"elem 10", "type button", "label Reset sel", "pos	1;6	-3;2", "dim	1;1	0;4", "off	1", "",
+		"elem 11", "type button", "label Reuse prev sel", "link_pos_id 10.lb", "pos	0	-0;2", "dim	1;1	0;3", "off	0	1", "",
 		"elem 20", "type button", "label Save screenshot", "link_pos_id 60", "pos	0	-0;8", "dim	2	0;7", "off	0;6	1", "",
 		"elem 30", "type button", "label Hide window", "link_pos_id 20", "pos	0	-0;10", "dim	2	0;7", "off	0;6	1", "",
 		"elem 40", "type button", "label Exit", "link_pos_id 30", "pos	0	-0;10", "dim	2	0;7", "off	0;6	1", "",
@@ -277,11 +316,13 @@ void screenshot_editor_dialog(edit_data_t *d)
 		"elem 61", "type label", "label Filename", "link_pos_id 60", "pos	-0;11;6	0;0;6", "dim	1;5;6	0;3;6", "off	0", "",
 		"elem 65", "type knob", "label Image ID", "knob 1 1 2 linear %.0f", "pos	2;4	-0;6", "dim	0;8", "off	0;6	1", "",
 		"elem 70", "type knob", "label Top", "knob 0 0 1079 linear %.0f", "pos	1;6	-1", "dim	0;8", "off	0;6	1", "",
-		"elem 71", "type knob", "label Left", "knob 0 0 1919 linear %.0f", "pos	0;8	-1;5", "dim	0;8", "off	0;6	1", "",
-		"elem 72", "type knob", "label Right", "knob 0 0 1919 linear %.0f", "pos	2;4	-1;5", "dim	0;8", "off	0;6	1", "",
-		"elem 73", "type knob", "label Bottom", "knob 0 0 1079 linear %.0f", "pos	1;6	-1;10", "dim	0;8", "off	0;6	1", "",
+		"elem 71", "type knob", "label Left", "knob 0 0 1919 linear %.0f", "link_pos_id 70.lc", "pos	-0;2	-0;5", "dim	0;8", "off	1	0;6", "",
+		"elem 72", "type knob", "label Right", "knob 0 0 1919 linear %.0f", "link_pos_id 70.rc", "pos	0;2	-0;5", "dim	0;8", "off	0	0;6", "",
+		"elem 73", "type knob", "label Bottom", "knob 0 0 1079 linear %.0f", "link_pos_id 70.cb", "pos	0	-0;2", "dim	0;8", "off	0;6	1", "",
 		"elem 75", "type label", "label Selection", "link_pos_id 70", "pos	0	0;3;6", "dim	2	0;2;6", "off	0;6	1", "",
-		"elem 80", "type checkbox", "label Preview", "link_pos_id 10", "pos	0;8	-0;0;6", "dim	1	0;3;6", "off	0;6	1", "",
+		"elem 76", "type knob", "label Width", "knob 1 1920 1920 linear %.0f", "link_pos_id 71.cb", "pos	0	-0;2", "dim	0;8", "off	0;6	1", "",
+		"elem 77", "type knob", "label Height", "knob 1 1080 1080 linear %.0f", "link_pos_id 72.cb", "pos	0	-0;2", "dim	0;8", "off	0;6	1", "",
+		"elem 80", "type checkbox", "label Preview", "link_pos_id 10.rc", "pos	0;2	0", "dim	1	0;3;6", "off	0	0;6", "",
 		"elem 90", "type checkbox", "label Set hotkey", "link_pos_id 11.rc", "pos	0;2	0", "dim	1	0;3", "off	0	0;6", "",
 	};
 
@@ -323,13 +364,7 @@ void screenshot_editor_dialog(edit_data_t *d)
 	get_knob_data_fromlayout(&layout, 65)->max = d->r_count > 0 ? d->r_count : 1;
 
 	if (d->rc.srgb)
-	{
-		// Match the crop selector ranges to the current image dimensions
-		get_knob_data_fromlayout(&layout, 70)->max = d->rc.dim.y-1;
-		get_knob_data_fromlayout(&layout, 73)->max = d->rc.dim.y-1;
-		get_knob_data_fromlayout(&layout, 71)->max = d->rc.dim.x-1;
-		get_knob_data_fromlayout(&layout, 72)->max = d->rc.dim.x-1;
-	}
+		set_crop_knob_limits(&layout, d->rc.dim);
 
 	// GUI controls
 	if (ctrl_button_fromlayout(&layout, 10))		// Reset selection
@@ -338,7 +373,7 @@ void screenshot_editor_dialog(edit_data_t *d)
 		d->crop_recalc = 1;
 	}
 
-	if (ctrl_button_fromlayout(&layout, 11))		// Reuse previous selection
+	if (ctrl_button_fromlayout(&layout, 11) && is0_rect(d->prev_rect) == 0)		// Reuse previous selection
 	{
 		d->resize_box = d->prev_rect;
 		d->crop_recalc = 1;
@@ -368,11 +403,68 @@ void screenshot_editor_dialog(edit_data_t *d)
 		d->image_id_moving = image_id_ret == 2;
 
 	// Selection knobs
+	int top_ret, left_ret, right_ret, bottom_ret, width_ret, height_ret, crop_knob_ret, size_knob_ret;
+	raster_t *r;
+	recti_t crop_recti;
 	draw_label_fromlayout(&layout, 75, ALIG_LEFT | MONODIGITS);
-	d->knob_ret |= ctrl_knob_fromlayout(&d->crop_rect.p0.y, &layout, 70);
-	d->knob_ret |= ctrl_knob_fromlayout(&d->crop_rect.p0.x, &layout, 71);
-	d->knob_ret |= ctrl_knob_fromlayout(&d->crop_rect.p1.x, &layout, 72);
-	d->knob_ret |= ctrl_knob_fromlayout(&d->crop_rect.p1.y, &layout, 73);
+	top_ret = ctrl_knob_fromlayout(&d->crop_rect.p0.y, &layout, 70);
+	left_ret = ctrl_knob_fromlayout(&d->crop_rect.p0.x, &layout, 71);
+	right_ret = ctrl_knob_fromlayout(&d->crop_rect.p1.x, &layout, 72);
+	bottom_ret = ctrl_knob_fromlayout(&d->crop_rect.p1.y, &layout, 73);
+	crop_knob_ret = top_ret | left_ret | right_ret | bottom_ret;
+	d->knob_ret |= crop_knob_ret;
+
+	r = get_selected_screenshot(d);
+	if (r)
+	{
+		if (crop_knob_ret)
+			set_resize_box_from_crop_rect(d, r);
+
+		// Update the size knobs from the rounded crop edges
+		crop_recti = get_limited_crop_recti(d, r->dim);
+		d->crop_width = 1 + crop_recti.p1.x - crop_recti.p0.x;
+		d->crop_height = 1 + crop_recti.p1.y - crop_recti.p0.y;
+	}
+
+	width_ret = ctrl_knob_fromlayout(&d->crop_width, &layout, 76);
+	height_ret = ctrl_knob_fromlayout(&d->crop_height, &layout, 77);
+	size_knob_ret = width_ret | height_ret;
+	d->knob_ret |= size_knob_ret;
+
+	if (r && size_knob_ret)
+	{
+		crop_recti = get_limited_crop_recti(d, r->dim);
+
+		// Extend the right edge or shift the left edge when the image edge is reached
+		if (width_ret)
+		{
+			int width = rangelimit_i32((int) nearbyint(d->crop_width), 1, r->dim.x);
+			crop_recti.p1.x = crop_recti.p0.x + width - 1;
+			if (crop_recti.p1.x >= r->dim.x)
+			{
+				crop_recti.p1.x = r->dim.x - 1;
+				crop_recti.p0.x = rangelimit_i32(crop_recti.p1.x - width + 1, 0, crop_recti.p1.x);
+			}
+			d->crop_width = width;
+		}
+
+		// Extend the bottom edge or shift the top edge when the image edge is reached
+		if (height_ret)
+		{
+			int height = rangelimit_i32((int) nearbyint(d->crop_height), 1, r->dim.y);
+			crop_recti.p1.y = crop_recti.p0.y + height - 1;
+			if (crop_recti.p1.y >= r->dim.y)
+			{
+				crop_recti.p1.y = r->dim.y - 1;
+				crop_recti.p0.y = rangelimit_i32(crop_recti.p1.y - height + 1, 0, crop_recti.p1.y);
+			}
+			d->crop_height = height;
+		}
+
+		// Store the adjusted crop rectangle and matching resize selection
+		d->crop_rect = rect(xyi_to_xy(crop_recti.p0), xyi_to_xy(crop_recti.p1));
+		set_resize_box_from_crop_rect(d, r);
+	}
 
 	// Path setting
 	draw_label_fromlayout(&layout, 51, ALIG_LEFT);
@@ -441,9 +533,8 @@ void screenshot_editor(edit_data_t *d)
 		// Capture the screenshots before queuing any draw work
 		take_and_process_screenshot(&d->r, &d->r_count, &d->mm);
 
-		// Select the first captured image and queue the filename update
+		// Queue the selected image refresh and filename update
 		d->shot_flag = 0;
-		d->image_id = 1.;
 		d->image_recalc = 1;
 		d->image_reset_crop = 1;
 		d->filename_recalc = 1;
@@ -541,6 +632,9 @@ int main(int argc, char *argv[])
 	SDL_HideWindow(fb->window);
 
 	gui_col_def = make_grey(0.25);
+
+	// Initialise the image selector to the first image
+	d->image_id = 1.;
 
 	// Load hotkey preference
 	d->hotkey_mod = pref_get_double(&pref_def, "Hotkey:Modifiers", 2 /*MOD_CONTROL*/ | 0x4000 /*MOD_NOREPEAT*/, NULL);
