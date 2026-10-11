@@ -648,7 +648,8 @@ hotkey_start:
 	if (first_loop == 0 && d->hotkey_diag_on == 0 && d->apply_status != -1)
 	{
 		MSG msg = {0};
-		while (GetMessage(&msg, NULL, 0, 0))
+		int msg_ret;
+		while ((msg_ret = GetMessage(&msg, NULL, 0, 0)) > 0)
 		{
 			if (msg.message == 0x0312 /*WM_HOTKEY*/)
 			{
@@ -656,7 +657,15 @@ hotkey_start:
 				d->raise_flag = 1;
 				break;
 			}
+
+			// Dispatch window messages while waiting for the hotkey
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
 		}
+
+		// Exit on WM_QUIT or a message retrieval error
+		if (msg_ret <= 0)
+			d->exit_flag = 1;
 	}
 
 	d->hide_flag = 0;
